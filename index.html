@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lifetime FreeHost</title>
+    <meta
+      name="description"
+      content="Create and view web pages stored entirely in the URL"
+    />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <style>
+      * {
+        box-sizing: border-box;
+        padding: 0;
+        margin: 0;
+      }
+
+      html,
+      body {
+        border: 0;
+        width: 100vw;
+        width: 100dvw;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      iframe {
+        border: none;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>
+      JavaScript is required to convert the URL into a usable web page.
+    </noscript>
+    <iframe id="frame" title="Rendered URL Page"></iframe>
+    <script type="text/javascript" src="b64.js"></script>
+    <script type="text/javascript" src="api.js"></script>
+    <script type="text/javascript">
+      function write(html) {
+        window.frames[0].location.replace(
+          `data:text/html;charset=utf-8;base64,${b64.encode(html)}`,
+        );
+      }
+
+      async function runCode() {
+        var hash = window.location.hash.slice(1);
+        if (!hash) return;
+
+        // 1. Check if it is a 5-character short alias (#abcde)
+        if (/^[a-z0-9]{5}$/i.test(hash)) {
+          var resolved = resolveShortAlias(hash.toLowerCase());
+          if (resolved !== null) {
+            write(unpackToHTML(resolved));
+            return;
+          }
+        }
+
+        // 2. Check if it is a Deflate-compressed v0.3.0 link (#z....)
+        if (hash.indexOf("z.") === 0) {
+          try {
+            var decompressed = await decompressFromHash(hash);
+            write(unpackToHTML(decompressed));
+            return;
+          } catch (e) {
+            console.error("Failed to decompress URL hash:", e);
+          }
+        }
+
+        // 3. Fallback to legacy Base64 JSON (v0.2.0) or raw Base64 (v0.0.1)
+        var data = b64.decode(hash);
+
+        try {
+          var urlDataObject = JSON.parse(data);
+          var api = apiVersions[urlDataObject.version];
+          write(api.decode(urlDataObject));
+        } catch (err) {
+          write(decodeURIComponent(data));
+        }
+      }
+
+      if (!window.location.hash) {
+        window.location.replace("./editor/index.html");
+      } else {
+        runCode();
+      }
+
+      window.addEventListener("hashchange", function () {
+        if (window.location.hash) {
+          runCode();
+        }
+      });
+    </script>
+  </body>
+</html>
