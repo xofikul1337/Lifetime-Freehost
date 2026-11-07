@@ -1,5 +1,7 @@
 # ⚡ Lifetime FreeHost
 
+🌐 **Live Demo:** [https://host.xofikul.is-a.dev](https://host.xofikul.is-a.dev)
+
 **Lifetime FreeHost** is a modern, serverless web playground and URL-based webpage hosting studio. Write **HTML5**, **CSS3**, and **JavaScript** in a sleek light-mode IDE, preview changes in real time across desktop/tablet/mobile viewports, and share your entire webpage inside a compressed URL—with zero backend servers or databases required.
 
 ---
