@@ -5,6 +5,12 @@
 
 api = apiVersions[LATEST_API_VERSION]
 
+var EDITORS = [
+  { id: "html", gutter: "htmlGutter", info: "htmlLines", lang: "html" },
+  { id: "css", gutter: "cssGutter", info: "cssLines", lang: "css" },
+  { id: "javascript", gutter: "jsGutter", info: "jsLines", lang: "js" }
+];
+
 
 
 /***
@@ -37,6 +43,16 @@ ${data["html"]}
 }
 
 
+/* Read the three editor boxes */
+function getEditorData() {
+  return {
+    "css" : document.getElementById("css").value,
+    "js" : document.getElementById("javascript").value,
+    "html" : document.getElementById("html").value
+  };
+}
+
+
 /* Display a temporary toast notification */
 var toastTimeout = null;
 function showToast(message) {
@@ -47,32 +63,100 @@ function showToast(message) {
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(function() {
     toast.classList.remove("visible");
-  }, 2600);
+  }, 2400);
+}
+
+
+/* Briefly mark a button as done (e.g. "Copied") */
+function flashDone(el, label) {
+  if (!el || !el.classList) return;
+  var text = el.querySelector(".btn-text");
+  if (text && !text.hasAttribute("data-label")) {
+    text.setAttribute("data-label", text.textContent);
+  }
+  el.classList.add("is-done");
+  if (text && label) text.textContent = label;
+  clearTimeout(el._doneTimer);
+  el._doneTimer = setTimeout(function() {
+    el.classList.remove("is-done");
+    if (text) text.textContent = text.getAttribute("data-label");
+  }, 1600);
+}
+
+
+/* Copy text, falling back to a prompt when the clipboard is unavailable */
+function copyText(text, promptLabel, onDone) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onDone).catch(function() {
+      window.prompt(promptLabel, text);
+    });
+  } else {
+    window.prompt(promptLabel, text);
+  }
+}
+
+
+/* Syntax-highlight the overlay behind each textarea */
+var lastHighlighted = {};
+function updateHighlighting() {
+  if (typeof Syntax === "undefined") {
+    document.querySelectorAll(".code-wrap").forEach(function(w) {
+      w.classList.add("plain");
+    });
+    return;
+  }
+
+  EDITORS.forEach(function(item) {
+    var textarea = document.getElementById(item.id);
+    var target = document.getElementById(item.id + "Hl");
+    if (!textarea || !target) return;
+
+    var value = textarea.value;
+    if (lastHighlighted[item.id] === value) return;
+    lastHighlighted[item.id] = value;
+
+    var markup = Syntax[item.lang](value);
+    // A trailing newline needs a character after it to take up a line
+    if (value.charAt(value.length - 1) === "\n") markup += " ";
+    target.innerHTML = markup;
+    syncScroll(item);
+  });
+}
+
+
+/* Keep the overlay and line numbers aligned with the textarea scroll */
+function syncScroll(item) {
+  var textarea = document.getElementById(item.id);
+  var code = document.getElementById(item.id + "Hl");
+  var gutter = document.getElementById(item.gutter);
+  if (!textarea) return;
+  var x = textarea.scrollLeft;
+  var y = textarea.scrollTop;
+  if (code) code.style.transform = "translate(" + (-x) + "px," + (-y) + "px)";
+  if (gutter) gutter.style.transform = "translateY(" + (-y) + "px)";
 }
 
 
 /* Update line numbers and line counts for each editor pane */
+var lastLineCount = {};
 function updateLineNumbers() {
-  var editors = [
-    { id: "html", gutter: "htmlGutter", info: "htmlLines" },
-    { id: "css", gutter: "cssGutter", info: "cssLines" },
-    { id: "javascript", gutter: "jsGutter", info: "jsLines" }
-  ];
-
-  editors.forEach(function(item) {
+  EDITORS.forEach(function(item) {
     var textarea = document.getElementById(item.id);
     var gutter = document.getElementById(item.gutter);
     var info = document.getElementById(item.info);
     if (!textarea || !gutter) return;
 
     var count = (textarea.value.match(/\n/g) || []).length + 1;
+    if (lastLineCount[item.id] === count) return;
+    lastLineCount[item.id] = count;
+
     var lines = [];
     for (var i = 1; i <= count; i++) {
       lines.push(i);
     }
     gutter.textContent = lines.join("\n");
     if (info) {
-      info.textContent = count + (count === 1 ? " line" : " lines");
+      info.textContent = count.toLocaleString() + (count === 1 ? " line" : " lines");
     }
   });
 }
@@ -82,7 +166,9 @@ function updateLineNumbers() {
 function switchMobileTab(tabName) {
   var buttons = document.querySelectorAll(".tab-btn");
   buttons.forEach(function(btn) {
-    btn.classList.toggle("active", btn.getAttribute("data-tab") === tabName);
+    var isActive = btn.getAttribute("data-tab") === tabName;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
 
   var panes = document.querySelectorAll(".editor-card");
@@ -110,7 +196,8 @@ function clearPane(id) {
   el.value = "";
   el.focus();
   update();
-  showToast(id.toUpperCase() + " cleared");
+  var names = { html: "HTML", css: "CSS", javascript: "JavaScript" };
+  showToast((names[id] || id) + " cleared");
 }
 
 
@@ -179,7 +266,7 @@ button {
 });`;
 
   update();
-  showToast("Demo template loaded!");
+  showToast("Demo loaded");
 }
 
 
@@ -200,49 +287,63 @@ function setPreviewWidth(width, btn) {
 }
 
 
+/* Show the page's link in the preview address bar */
+function renderAddressBar(url) {
+  var hostEl = document.getElementById("addrHost");
+  var hashEl = document.getElementById("addrHash");
+  if (!hostEl || !hashEl) return;
+  var cut = url.indexOf("#");
+  var base = cut === -1 ? url : url.slice(0, cut);
+  var hash = cut === -1 ? "" : url.slice(cut);
+  hostEl.textContent = base.replace(/^https?:\/\//, "").replace(/index\.html$/, "");
+  hashEl.textContent = hash;
+}
+
+
 /* Copy compressed shareable URL directly to clipboard */
-async function copyShareLink() {
-  var data = {
-    "css" : document.getElementById("css").value,
-    "js" : document.getElementById("javascript").value,
-    "html" : document.getElementById("html").value
-  };
-  var url = await api.getCompressedViewLink(data);
+async function copyShareLink(btn) {
+  var url = await api.getCompressedViewLink(getEditorData());
   document.getElementById("getLinkLink").href = url;
 
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(function() {
-      showToast("Compressed Share Link copied!");
-    }).catch(function() {
-      window.prompt("Copy shareable link:", url);
-    });
-  } else {
-    window.prompt("Copy shareable link:", url);
-  }
+  copyText(url, "Copy shareable link:", function() {
+    flashDone(btn, "Copied");
+    showToast("Link copied");
+  });
 }
 
 
 /* Generate and copy 5-character ultra-short alias link (#abcde) */
-function copyShortAliasLink() {
-  var data = {
-    "css" : document.getElementById("css").value,
-    "js" : document.getElementById("javascript").value,
-    "html" : document.getElementById("html").value
-  };
-  var packed = packParts(data);
+function copyShortAliasLink(btn) {
+  var packed = packParts(getEditorData());
   var shortUrl = createShortAlias(packed);
   document.getElementById("getLinkLink").href = shortUrl;
 
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(shortUrl).then(function() {
-      var code = shortUrl.split("#")[1];
-      showToast("Short Link (#" + code + ") copied!");
-    }).catch(function() {
-      window.prompt("Copy Short Link:", shortUrl);
-    });
-  } else {
-    window.prompt("Copy Short Link:", shortUrl);
-  }
+  copyText(shortUrl, "Copy short link:", function() {
+    var code = shortUrl.split("#")[1];
+    flashDone(btn);
+    showToast("Short link #" + code + " copied. It opens only in this browser.");
+  });
+}
+
+
+/* Switch between light and dark themes */
+function toggleTheme() {
+  var root = document.documentElement;
+  var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  try {
+    localStorage.setItem("lfh_theme", next);
+  } catch (e) {}
+  syncThemeToggle();
+}
+
+function syncThemeToggle() {
+  var btn = document.getElementById("themeToggle");
+  if (!btn) return;
+  var isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  var label = isDark ? "Switch to light theme" : "Switch to dark theme";
+  btn.setAttribute("aria-label", label);
+  btn.setAttribute("title", label);
 }
 
 
@@ -252,31 +353,29 @@ function copyShortAliasLink() {
  ***/
 
 
-/* Show a prompt with the HTML page data so the user can copy the code */
-function showCopyCodePrompt() {
-  var data = {
-    "css" : document.getElementById("css").value,
-    "js" : document.getElementById("javascript").value,
-    "html" : document.getElementById("html").value
-  };
-
-  var html = getHTML(data);
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(html).then(function() {
-      showToast("Compiled HTML copied to clipboard!");
-    }).catch(function() {
-      window.prompt("Copy to clipboard: ", html);
-    });
-  } else {
-    window.prompt("Copy to clipboard: ", html);
-  }
+/* Copy the compiled HTML page so the user can paste it anywhere */
+function showCopyCodePrompt(btn) {
+  var html = getHTML(getEditorData());
+  copyText(html, "Copy to clipboard: ", function() {
+    flashDone(btn);
+    showToast("HTML copied");
+  });
 }
 
 
-/* Hide and show buttons based on checkbox state */
+/* Show only the preview, or bring the editors back */
+function toggleZen(force) {
+  var on = typeof force === "boolean" ? force : !document.body.classList.contains("zen-mode");
+  document.body.classList.toggle("zen-mode", on);
+  var btn = document.getElementById("zenToggle");
+  var label = document.getElementById("zenLabel");
+  if (btn) btn.setAttribute("aria-pressed", on ? "true" : "false");
+  if (label) label.textContent = on ? "Exit fullscreen" : "Fullscreen";
+}
+
+/* Kept for older markup that used a checkbox */
 function hideButtons(box) {
-  document.body.classList.toggle("zen-mode", box.checked);
+  toggleZen(!!box.checked);
 }
 
 
@@ -321,30 +420,24 @@ async function initialize() {
   var stage = document.getElementById("iframeStage");
   if (stage) stage.classList.add("full-bleed");
 
+  syncThemeToggle();
   setupEditorEnhancements();
   update();
 }
 
 
-/* Configure Tab indentation, gutter scroll sync, and split resizer */
+/* Configure Tab indentation, scroll sync, and split resizer */
 function setupEditorEnhancements() {
-  var pairs = [
-    { id: "html", gutter: "htmlGutter" },
-    { id: "css", gutter: "cssGutter" },
-    { id: "javascript", gutter: "jsGutter" }
-  ];
-
-  pairs.forEach(function(pair) {
-    var textarea = document.getElementById(pair.id);
-    var gutter = document.getElementById(pair.gutter);
+  EDITORS.forEach(function(item) {
+    var textarea = document.getElementById(item.id);
     if (!textarea) return;
 
     textarea.addEventListener("scroll", function() {
-      if (gutter) gutter.scrollTop = textarea.scrollTop;
+      syncScroll(item);
     });
 
     textarea.addEventListener("keydown", function(e) {
-      if (e.key === "Tab") {
+      if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         var start = textarea.selectionStart;
         var end = textarea.selectionEnd;
@@ -355,6 +448,13 @@ function setupEditorEnhancements() {
     });
   });
 
+  // Esc leaves fullscreen preview
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape" && document.body.classList.contains("zen-mode")) {
+      toggleZen(false);
+    }
+  });
+
   // Setup vertical drag resizer between editor grid and preview pane
   var resizer = document.getElementById("dragResizer");
   var workspace = document.getElementById("workspace");
@@ -362,16 +462,20 @@ function setupEditorEnhancements() {
   if (resizer && workspace && textboxes) {
     var isDragging = false;
 
-    resizer.addEventListener("mousedown", function(e) {
+    function setFramePointer(value) {
+      var iframe = document.getElementById("previewFrame");
+      if (iframe) iframe.style.pointerEvents = value;
+    }
+
+    resizer.addEventListener("pointerdown", function(e) {
       isDragging = true;
       resizer.classList.add("dragging");
       document.body.style.cursor = "row-resize";
-      var iframe = document.querySelector("iframe");
-      if (iframe) iframe.style.pointerEvents = "none";
+      setFramePointer("none");
       e.preventDefault();
     });
 
-    window.addEventListener("mousemove", function(e) {
+    window.addEventListener("pointermove", function(e) {
       if (!isDragging) return;
       var rect = workspace.getBoundingClientRect();
       var offsetY = e.clientY - rect.top;
@@ -379,13 +483,12 @@ function setupEditorEnhancements() {
       textboxes.style.height = percentage + "%";
     });
 
-    window.addEventListener("mouseup", function() {
+    window.addEventListener("pointerup", function() {
       if (!isDragging) return;
       isDragging = false;
       resizer.classList.remove("dragging");
       document.body.style.cursor = "";
-      var iframe = document.querySelector("iframe");
-      if (iframe) iframe.style.pointerEvents = "";
+      setFramePointer("");
     });
   }
 
@@ -398,23 +501,25 @@ function setupEditorEnhancements() {
 }
 
 
-/* Run each time a key is pressed on a text box */
+/* Run each time a text box changes */
 var updateSeq = 0;
 async function update() {
   var currentSeq = ++updateSeq;
-  var data = {
-    "css" : document.getElementById("css").value,
-    "js" : document.getElementById("javascript").value,
-    "html" : document.getElementById("html").value
-  };
+  var data = getEditorData();
 
   var html = getHTML(data);
 
   // Update the download link immediately
   document.getElementById("downloadLink").href = `data:text/html,${encodeURIComponent(html)}`;
 
-  // Update line numbers immediately
+  // Update line numbers and colours immediately
   updateLineNumbers();
+  updateHighlighting();
+
+  // Invite the user to start when every box is empty
+  var isEmpty = !data.html.trim() && !data.css.trim() && !data.js.trim();
+  var emptyState = document.getElementById("emptyState");
+  if (emptyState) emptyState.hidden = !isEmpty;
 
   // Update the <iframe> to display the generated page immediately
   window.frames[0].location.replace(`data:text/html;charset=utf-8;base64,${b64.encode(html)}`);
@@ -431,9 +536,10 @@ async function update() {
     window.location.hash = "#" + compressedHash;
   }
 
-  // Update the URL for the "Open Page" / "Share Link" button
+  // Update the URL for the "Open page" button and the address bar
   var viewLink = `${getBaseViewerUrl()}#${compressedHash}`;
   document.getElementById("getLinkLink").href = viewLink;
+  renderAddressBar(viewLink);
 
   // Calculate savings compared to legacy v0.2.0 uncompressed link
   var legacyLink = apiVersions["0.2.0"].getViewLink(html);
@@ -441,6 +547,7 @@ async function update() {
 
   var statsEl = document.getElementById("urlStats");
   if (statsEl) {
-    statsEl.textContent = viewLink.length.toLocaleString() + " chars (-" + savedPct + "%)";
+    statsEl.textContent = viewLink.length.toLocaleString() + " chars";
+    statsEl.title = savedPct + "% shorter than an uncompressed link";
   }
 }
