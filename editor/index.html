@@ -1,17 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
   <!-- Metadata -->
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>Lifetime FreeHost — Modern Code Playground</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="description" content="Write HTML, CSS and JavaScript, then share the whole page as a single link. No server, no database.">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#18212f" media="(prefers-color-scheme: dark)">
+  <title>Lifetime FreeHost — Pages that live in their link</title>
   <link rel="shortcut icon" href="../favicon.ico">
+
+  <!-- Apply the saved theme before first paint to avoid a flash -->
+  <script>
+    (function () {
+      var theme = "light";
+      try {
+        theme = localStorage.getItem("lfh_theme") ||
+          (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      } catch (e) {}
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 
   <!-- Styles -->
   <link rel="stylesheet" type="text/css" href="main.css">
@@ -19,265 +34,262 @@
   <!-- Scripts -->
   <script src="../b64.js" type="text/javascript"></script>
   <script src="../api.js" type="text/javascript"></script>
+  <script src="syntax.js" type="text/javascript"></script>
   <script src="editor.js" type="text/javascript"></script>
 </head>
 
 <body onload="initialize()">
   <div class="app-shell">
-    <!-- Top Navigation Bar -->
+    <!-- Top bar -->
     <header class="topbar">
       <div class="brand">
-        <div class="brand-logo" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="16 18 22 12 16 6"></polyline>
-            <polyline points="8 6 2 12 8 18"></polyline>
-          </svg>
+        <svg class="brand-mark" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="8" class="brand-mark-bg"></rect>
+          <path d="M13 8.5 11 23.5M21 8.5 19 23.5M8.5 13h16M7.5 19h16" class="brand-mark-hash"></path>
+        </svg>
+        <span class="brand-text">
+          <span class="brand-name">Lifetime FreeHost</span>
+          <span class="brand-tagline">Web pages that live inside their link</span>
+        </span>
+      </div>
+
+      <!-- Actions (top bar on desktop, bottom bar on phones) -->
+      <div class="toolbar" id="topright-buttons">
+        <div class="tool-group">
+          <button type="button" class="btn btn-quiet" onclick="loadStarterTemplate()" title="Load demo" aria-label="Load demo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"></path>
+              <path d="M19 15l.8 1.9 1.9.8-1.9.8L19 20.4l-.8-1.9-1.9-.8 1.9-.8z"></path>
+            </svg>
+            <span class="btn-label">Load demo</span>
+          </button>
+
+          <button type="button" class="btn btn-quiet" onclick="showCopyCodePrompt(this)" title="Copy HTML" aria-label="Copy HTML">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+              <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path>
+            </svg>
+            <span class="btn-label">Copy HTML</span>
+          </button>
+
+          <a id="downloadLink" class="btn btn-quiet" href="" target="_blank" download="export.html" title="Download as export.html" aria-label="Download HTML file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span class="btn-label">Download</span>
+          </a>
         </div>
-        <div class="brand-info">
-          <div class="brand-title-row">
-            <h1>Lifetime FreeHost</h1>
-            <span class="brand-badge">Studio</span>
-          </div>
-          <p class="brand-subtitle">Serverless web pages hosted forever in the URL</p>
+
+        <span class="tool-divider" aria-hidden="true"></span>
+
+        <div class="tool-group">
+          <button type="button" class="btn btn-outline" onclick="copyShortAliasLink(this)" title="Copy a 5-character link. It only opens in this browser." aria-label="Copy short link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span class="btn-label">Short link</span>
+          </button>
+
+          <a id="getLinkLink" class="btn btn-outline" href="" target="_blank" rel="noopener" title="Open the page in a new tab" aria-label="Open page">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span class="btn-label">Open page</span>
+          </a>
+
+          <button type="button" class="btn btn-primary" onclick="copyShareLink(this)" title="Copy the full link to this page">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            <span class="btn-text">Copy link</span>
+          </button>
         </div>
       </div>
 
-      <!-- Segmented Tab Bar (Visible on Mobile/Tablet) -->
+      <button type="button" class="btn btn-quiet btn-icon theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch theme" aria-label="Switch to dark theme">
+        <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <svg class="icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.5"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+        </svg>
+      </button>
+
+      <!-- Panel switcher (tablets and phones) -->
       <nav class="mobile-tabs" aria-label="Workspace panels">
-        <button type="button" class="tab-btn active" data-tab="html" onclick="switchMobileTab('html')">
-          <span class="tab-dot html-dot"></span>
-          <span>HTML</span>
+        <button type="button" class="tab-btn active" aria-pressed="true" data-tab="html" onclick="switchMobileTab('html')">
+          <span class="tab-dot" style="--lang: var(--html)"></span>HTML
         </button>
-        <button type="button" class="tab-btn" data-tab="css" onclick="switchMobileTab('css')">
-          <span class="tab-dot css-dot"></span>
-          <span>CSS</span>
+        <button type="button" class="tab-btn" aria-pressed="false" data-tab="css" onclick="switchMobileTab('css')">
+          <span class="tab-dot" style="--lang: var(--css)"></span>CSS
         </button>
-        <button type="button" class="tab-btn" data-tab="javascript" onclick="switchMobileTab('javascript')">
-          <span class="tab-dot js-dot"></span>
-          <span>JS</span>
+        <button type="button" class="tab-btn" aria-pressed="false" data-tab="javascript" onclick="switchMobileTab('javascript')">
+          <span class="tab-dot" style="--lang: var(--js)"></span>JS
         </button>
-        <button type="button" class="tab-btn" data-tab="preview" onclick="switchMobileTab('preview')">
-          <span class="tab-dot preview-dot"></span>
-          <span>Preview</span>
+        <button type="button" class="tab-btn" aria-pressed="false" data-tab="preview" onclick="switchMobileTab('preview')">
+          <span class="tab-dot" style="--lang: var(--live)"></span>Preview
         </button>
       </nav>
-
-      <!-- Top Right Action Toolbar -->
-      <div id="topright-buttons" class="toolbar-actions">
-        <span class="url-counter" id="urlStats" title="Total characters in generated URL">0 chars</span>
-
-        <button type="button" class="btn btn-ghost" onclick="loadStarterTemplate()" title="Load a sample template">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-          </svg>
-          <span class="btn-label">Demo</span>
-        </button>
-
-        <button type="button" class="btn btn-secondary" onclick="showCopyCodePrompt()" title="Copy compiled HTML code">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          <span class="btn-label">Copy HTML</span>
-        </button>
-
-        <a id="downloadLink" class="btn btn-secondary" href="" target="_blank" download="export.html" title="Download as HTML file">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          <span class="btn-label">Download</span>
-        </a>
-
-        <button type="button" class="btn btn-secondary" onclick="copyShortAliasLink()" title="Generate & copy ultra-short 5-character link (#abcde)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-          </svg>
-          <span>Short URL</span>
-        </button>
-
-        <button type="button" class="btn btn-primary" onclick="copyShareLink()" title="Copy compressed portable URL to clipboard">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-          <span>Share Link</span>
-        </button>
-
-        <a id="getLinkLink" class="btn btn-accent-outline" href="" target="_blank" rel="noopener" title="Open live page in new tab">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
-          <span>Open Page</span>
-        </a>
-
-        <a class="btn btn-secondary hide-sm" href="https://xofikul.is-a.dev/" target="_blank" rel="noopener" title="Shofikul Islam — Portfolio">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-          </svg>
-          <span class="btn-label">Portfolio</span>
-        </a>
-      </div>
     </header>
 
-    <!-- Main Bento Workspace -->
+    <!-- Workspace -->
     <main class="workspace" id="workspace">
-      <!-- Top row of code entry boxes -->
-      <section id="textboxes" class="editors-grid" onkeyup="update()" oninput="update()">
-        <!-- HTML Card -->
-        <div class="editor-card active" data-pane="html">
-          <div class="card-header html-header">
-            <div class="card-title">
-              <span class="lang-pill html-pill">HTML5</span>
-              <span class="file-name">index.html</span>
-            </div>
-            <div class="card-meta">
-              <span class="line-info" id="htmlLines">1 line</span>
-              <button type="button" class="mini-clear-btn" onclick="clearPane('html')" title="Clear HTML code">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-                <span>Clear</span>
-              </button>
-            </div>
+      <!-- Code editors -->
+      <section id="textboxes" class="editors" oninput="update()">
+        <div class="editor-card active" data-pane="html" style="--lang: var(--html)">
+          <div class="pane-head">
+            <span class="lang-glyph" aria-hidden="true">&lt;/&gt;</span>
+            <span class="file-name">index.html</span>
+            <span class="line-info" id="htmlLines">1 line</span>
+            <button type="button" class="clear-btn" onclick="clearPane('html')" title="Clear HTML" aria-label="Clear HTML">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
           </div>
           <div class="code-area">
-            <div class="line-numbers" id="htmlGutter" aria-hidden="true">1</div>
-            <textarea id="html" placeholder="<!-- Write your HTML markup here -->" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+            <div class="line-numbers" aria-hidden="true"><div class="gutter-inner" id="htmlGutter">1</div></div>
+            <div class="code-wrap">
+              <pre class="code-hl" aria-hidden="true"><code id="htmlHl"></code></pre>
+              <textarea id="html" aria-label="HTML" placeholder="<!-- Write your HTML here -->" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+            </div>
           </div>
         </div>
 
-        <!-- CSS Card -->
-        <div class="editor-card" data-pane="css">
-          <div class="card-header css-header">
-            <div class="card-title">
-              <span class="lang-pill css-pill">CSS3</span>
-              <span class="file-name">styles.css</span>
-            </div>
-            <div class="card-meta">
-              <span class="line-info" id="cssLines">1 line</span>
-              <button type="button" class="mini-clear-btn" onclick="clearPane('css')" title="Clear CSS code">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-                <span>Clear</span>
-              </button>
-            </div>
+        <div class="editor-card" data-pane="css" style="--lang: var(--css)">
+          <div class="pane-head">
+            <span class="lang-glyph" aria-hidden="true">#</span>
+            <span class="file-name">styles.css</span>
+            <span class="line-info" id="cssLines">1 line</span>
+            <button type="button" class="clear-btn" onclick="clearPane('css')" title="Clear CSS" aria-label="Clear CSS">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
           </div>
           <div class="code-area">
-            <div class="line-numbers" id="cssGutter" aria-hidden="true">1</div>
-            <textarea id="css" placeholder="/* Style your page with CSS */" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+            <div class="line-numbers" aria-hidden="true"><div class="gutter-inner" id="cssGutter">1</div></div>
+            <div class="code-wrap">
+              <pre class="code-hl" aria-hidden="true"><code id="cssHl"></code></pre>
+              <textarea id="css" aria-label="CSS" placeholder="/* Style your page */" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+            </div>
           </div>
         </div>
 
-        <!-- JavaScript Card -->
-        <div class="editor-card" data-pane="javascript">
-          <div class="card-header js-header">
-            <div class="card-title">
-              <span class="lang-pill js-pill">JS</span>
-              <span class="file-name">script.js</span>
-            </div>
-            <div class="card-meta">
-              <span class="line-info" id="jsLines">1 line</span>
-              <button type="button" class="mini-clear-btn" onclick="clearPane('javascript')" title="Clear JavaScript code">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-                <span>Clear</span>
-              </button>
-            </div>
+        <div class="editor-card" data-pane="javascript" style="--lang: var(--js)">
+          <div class="pane-head">
+            <span class="lang-glyph" aria-hidden="true">{ }</span>
+            <span class="file-name">script.js</span>
+            <span class="line-info" id="jsLines">1 line</span>
+            <button type="button" class="clear-btn" onclick="clearPane('javascript')" title="Clear JavaScript" aria-label="Clear JavaScript">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
           </div>
           <div class="code-area">
-            <div class="line-numbers" id="jsGutter" aria-hidden="true">1</div>
-            <textarea id="javascript" placeholder="// Add interactivity with JavaScript" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+            <div class="line-numbers" aria-hidden="true"><div class="gutter-inner" id="jsGutter">1</div></div>
+            <div class="code-wrap">
+              <pre class="code-hl" aria-hidden="true"><code id="javascriptHl"></code></pre>
+              <textarea id="javascript" aria-label="JavaScript" placeholder="// Add interactivity" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- Draggable Split Divider -->
-      <div class="resizer" id="dragResizer" title="Drag to adjust editor & preview height">
-        <div class="resizer-grip">
-          <span></span><span></span><span></span>
-        </div>
+      <!-- Drag handle between editors and preview -->
+      <div class="resizer" id="dragResizer" title="Drag to resize" role="separator" aria-orientation="horizontal">
+        <span class="resizer-grip"></span>
       </div>
 
-      <!-- Browser-Style Live Preview Card -->
+      <!-- Live preview -->
       <section class="preview-card" id="previewSection" data-pane="preview">
         <div class="browser-toolbar">
-          <div class="browser-left">
-            <div class="window-dots" aria-hidden="true">
-              <span class="dot dot-close"></span>
-              <span class="dot dot-min"></span>
-              <span class="dot dot-max"></span>
-            </div>
-            <div class="address-bar">
-              <span class="live-pulse"></span>
-              <span class="address-text">live-preview://local-sandbox</span>
-            </div>
-          </div>
+          <button type="button" class="address-bar" id="addressBar" onclick="copyShareLink(this)" title="This is the page's link. Click to copy it.">
+            <span class="live-pulse" aria-hidden="true"></span>
+            <span class="address-text">
+              <span class="addr-host" id="addrHost"></span><span class="addr-hash" id="addrHash"></span>
+            </span>
+            <span class="addr-count" id="urlStats">0 chars</span>
+          </button>
 
-          <!-- Responsive Viewport Presets + Zen Toggle -->
-          <div id="bottomleft-buttons" class="browser-actions">
-            <div class="viewport-group" role="group" aria-label="Preview size">
-              <button type="button" class="vp-btn active" data-vp="100%" onclick="setPreviewWidth('100%', this)" title="Full Desktop Width">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+          <div class="browser-actions" id="bottomleft-buttons">
+            <div class="viewport-group" role="group" aria-label="Preview width">
+              <button type="button" class="vp-btn active" data-vp="100%" onclick="setPreviewWidth('100%', this)" title="Full width" aria-label="Full width">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="2" y="3" width="20" height="14" rx="2"></rect>
                   <line x1="8" y1="21" x2="16" y2="21"></line>
                   <line x1="12" y1="17" x2="12" y2="21"></line>
                 </svg>
               </button>
-              <button type="button" class="vp-btn" data-vp="768px" onclick="setPreviewWidth('768px', this)" title="Tablet Width (768px)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+              <button type="button" class="vp-btn" data-vp="768px" onclick="setPreviewWidth('768px', this)" title="Tablet (768 px)" aria-label="Tablet width">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="4" y="2" width="16" height="20" rx="2"></rect>
                   <line x1="12" y1="18" x2="12.01" y2="18"></line>
                 </svg>
               </button>
-              <button type="button" class="vp-btn" data-vp="390px" onclick="setPreviewWidth('390px', this)" title="Mobile Width (390px)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+              <button type="button" class="vp-btn" data-vp="390px" onclick="setPreviewWidth('390px', this)" title="Phone (390 px)" aria-label="Phone width">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="6" y="2" width="12" height="20" rx="2"></rect>
                   <line x1="12" y1="18" x2="12.01" y2="18"></line>
                 </svg>
               </button>
             </div>
 
-            <button type="button" class="preview-ctrl-btn" onclick="update()" title="Reload Preview">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" class="preview-ctrl-btn" onclick="update()" title="Run again" aria-label="Run again">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="23 4 23 10 17 10"></polyline>
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
               </svg>
-              <span>Run</span>
+              <span class="ctrl-label">Run</span>
             </button>
 
-            <label for="hide" class="zen-pill" title="Expand preview to full screen">
-              <input type="checkbox" id="hide" onclick="hideButtons(this)" />
-              <span>Fullscreen</span>
-            </label>
+            <button type="button" class="preview-ctrl-btn" id="zenToggle" onclick="toggleZen()" aria-pressed="false" title="Show only the preview (Esc to exit)" aria-label="Fullscreen preview">
+              <svg class="icon-expand" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+              <svg class="icon-collapse" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="4 14 10 14 10 20"></polyline>
+                <polyline points="20 10 14 10 14 4"></polyline>
+                <line x1="14" y1="10" x2="21" y2="3"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+              <span class="ctrl-label" id="zenLabel">Fullscreen</span>
+            </button>
           </div>
         </div>
 
-        <div class="iframe-stage" id="iframeStage">
-          <iframe id="previewFrame" title="Live Page Preview"></iframe>
+        <div class="iframe-stage full-bleed" id="iframeStage">
+          <iframe id="previewFrame" title="Live page preview"></iframe>
+          <div class="empty-state" id="emptyState" hidden>
+            <p class="empty-title">Nothing to preview yet</p>
+            <p class="empty-body">Write some HTML in the editor, or start from the demo page.</p>
+            <button type="button" class="btn btn-outline" onclick="loadStarterTemplate()">Load demo</button>
+          </div>
         </div>
       </section>
     </main>
 
     <!-- Footer -->
     <footer class="app-footer">
-      <span>&copy; Lifetime FreeHost</span>
-      <span class="footer-dot">&bull;</span>
-      <span>Developed by <a href="https://xofikul.is-a.dev/" target="_blank" rel="noopener">Shofikul Islam</a></span>
+      <span>Lifetime FreeHost is free and open source.</span>
+      <span>Built by <a href="https://xofikul.is-a.dev/" target="_blank" rel="noopener">Shofikul Islam</a></span>
     </footer>
   </div>
 
-  <!-- Toast Notification -->
+  <!-- Toast notification -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 
